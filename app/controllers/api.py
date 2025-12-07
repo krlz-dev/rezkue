@@ -4,25 +4,28 @@ API controller - AJAX endpoints for dynamic content
 from flask import Blueprint, jsonify, request
 from HdRezkaApi import HdRezkaApi
 from app.models import Episode, Quality
-from app.utils import PlaywrightStreamFetcher
 
 api_bp = Blueprint('api', __name__)
 
 # Browser-like headers to avoid detection/blocking
-BROWSER_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.9,ru;q=0.8',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'DNT': '1',
-    'Connection': 'keep-alive',
-    'Upgrade-Insecure-Requests': '1',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-User': '?1',
-    'Cache-Control': 'max-age=0'
-}
+def get_headers(video_url='https://rezka.ag'):
+    """Generate headers with proper Origin and Referer"""
+    return {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9,ru;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Origin': 'https://rezka.ag',
+        'Referer': video_url,
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin',
+        'Cache-Control': 'max-age=0',
+        'X-Requested-With': 'XMLHttpRequest'
+    }
 
 
 @api_bp.route('/episodes', methods=['POST'])
@@ -39,7 +42,7 @@ def get_episodes():
         print(f"[EPISODES] Getting episodes for: {video_url}")
 
         try:
-            rezka = HdRezkaApi(video_url, headers=BROWSER_HEADERS)
+            rezka = HdRezkaApi(video_url, headers=get_headers(video_url))
             print(f"[EPISODES] Content type: {rezka.type}")
             print(f"[EPISODES] Available translators: {list(rezka.translators.keys()) if hasattr(rezka, 'translators') else 'None'}")
         except Exception as e:
@@ -127,7 +130,7 @@ def get_season_episodes():
         print(f"[SEASON_EPISODES] Getting episodes for season {season_id}")
 
         try:
-            rezka = HdRezkaApi(video_url, headers=BROWSER_HEADERS)
+            rezka = HdRezkaApi(video_url, headers=get_headers(video_url))
             print(f"[SEASON_EPISODES] Content type: {rezka.type}")
         except Exception as e:
             print(f"[ERROR] Failed to initialize HdRezkaApi: {e}")
@@ -212,61 +215,19 @@ def get_stream_url():
         print(f"[STREAM] Getting stream for: {video_url}")
         print(f"  Translator: {translator_id}, Season: {season_id}, Episode: {episode_id}")
 
+        # Initialize HdRezkaApi with proper headers
         try:
-            rezka = HdRezkaApi(video_url, headers=BROWSER_HEADERS)
+            rezka = HdRezkaApi(video_url, headers=get_headers(video_url))
             print(f"[STREAM] Content type: {rezka.type}")
             print(f"[STREAM] Available translators: {list(rezka.translators.keys()) if hasattr(rezka, 'translators') else 'None'}")
         except Exception as e:
-            # Failed to initialize - try Playwright immediately
             print(f"[ERROR] Failed to initialize HdRezkaApi: {e}")
-            print(f"[FALLBACK] Trying Playwright for blocked initialization...")
-
-            try:
-                season_num = int(season_id) if season_id and season_id != 'null' else None
-                episode_num = int(episode_id) if episode_id and episode_id != 'null' else None
-                trans_id = int(translator_id) if translator_id and translator_id != 'null' else None
-
-                playwright_result = PlaywrightStreamFetcher.get_stream_with_browser(
-                    video_url=video_url,
-                    translator_id=trans_id,
-                    season=season_num,
-                    episode=episode_num
-                )
-
-                if playwright_result.get('success') and playwright_result.get('qualities'):
-                    quality_options = playwright_result['qualities']
-                    quality_field = ','.join([
-                        f"[{opt['quality']}]{opt['url']}"
-                        for opt in quality_options
-                    ])
-
-                    print(f"[FALLBACK] Success! Found {len(quality_options)} quality options")
-
-                    return jsonify({
-                        'success': True,
-                        'url': quality_field,
-                        'quality': quality_field,
-                        'qualities': quality_options,
-                        'subtitles': playwright_result.get('subtitles', []),
-                        'subtitle': '',
-                        'subtitle_lns': '',
-                        'thumbnails': '',
-                        'via_playwright': True
-                    })
-                else:
-                    error_msg = playwright_result.get('error', 'Unknown error')
-                    return jsonify({
-                        'success': False,
-                        'error': f'Unable to access content. {error_msg}'
-                    }), 503
-
-            except Exception as fallback_error:
-                import traceback
-                traceback.print_exc()
-                return jsonify({
-                    'success': False,
-                    'error': f'Unable to access content. All methods failed.'
-                }), 503
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'success': False,
+                'error': 'Unable to access content. The source may be blocking requests or the URL is invalid.'
+            }), 503
 
         # Get the stream based on video type
         stream = None
@@ -293,64 +254,25 @@ def get_stream_url():
                     stream = rezka.getStream(translation=int(translator_id))
                 else:
                     stream = rezka.getStream()
-        except (AttributeError, Exception) as e:
-            # API request failed - try Playwright fallback
-            print(f"[ERROR] API request failed: {e}")
-            print(f"[FALLBACK] Attempting Playwright browser-based fetch...")
-
-            try:
-                # Prepare parameters for Playwright
-                season_num = int(season_id) if season_id and season_id != 'null' else None
-                episode_num = int(episode_id) if episode_id and episode_id != 'null' else None
-                trans_id = int(translator_id) if translator_id and translator_id != 'null' else None
-
-                # Try Playwright fallback
-                playwright_result = PlaywrightStreamFetcher.get_stream_with_browser(
-                    video_url=video_url,
-                    translator_id=trans_id,
-                    season=season_num,
-                    episode=episode_num
-                )
-
-                if playwright_result.get('success') and playwright_result.get('qualities'):
-                    # Format response in expected format
-                    quality_options = playwright_result['qualities']
-
-                    quality_field = ','.join([
-                        f"[{opt['quality']}]{opt['url']}"
-                        for opt in quality_options
-                    ])
-
-                    print(f"[FALLBACK] Success! Found {len(quality_options)} quality options via Playwright")
-
-                    return jsonify({
-                        'success': True,
-                        'url': quality_field,
-                        'quality': quality_field,
-                        'qualities': quality_options,
-                        'subtitles': playwright_result.get('subtitles', []),
-                        'subtitle': '',
-                        'subtitle_lns': '',
-                        'thumbnails': '',
-                        'via_playwright': True  # Flag to indicate fallback was used
-                    })
-                else:
-                    # Playwright also failed
-                    error_msg = playwright_result.get('error', 'Unknown error')
-                    print(f"[FALLBACK] Failed: {error_msg}")
-                    return jsonify({
-                        'success': False,
-                        'error': f'Unable to access video stream. Both API and browser methods were blocked. {error_msg}'
-                    }), 503
-
-            except Exception as fallback_error:
-                print(f"[FALLBACK] Playwright error: {fallback_error}")
-                import traceback
-                traceback.print_exc()
-                return jsonify({
-                    'success': False,
-                    'error': f'All methods failed. Original: {str(e)}, Fallback: {str(fallback_error)}'
-                }), 503
+        except AttributeError as e:
+            # This catches the 'bool' object has no attribute 'replace' error
+            error_msg = str(e)
+            print(f"[ERROR] API returned unexpected data type: {error_msg}")
+            print(f"[ERROR] The server may be blocking API requests or returned invalid data")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'success': False,
+                'error': 'Unable to access video stream. The server returned invalid data. This translator may not be available for this content.'
+            }), 503
+        except Exception as e:
+            print(f"[ERROR] Failed to get stream: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'success': False,
+                'error': f'Failed to get stream: {str(e)}'
+            }), 503
 
         if not stream:
             return jsonify({

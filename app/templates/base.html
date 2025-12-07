@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
 
     <!-- SEO Meta Tags -->
-    <meta name="description" content="{% block description %}HD-KRLZ - Stream HD movies and TV series online. Watch with multiple quality options, subtitle support, and episode tracking. Free video streaming platform.{% endblock %}">
+    <meta name="description" content="{% block description %}HD-RZKA - Stream HD movies and TV series online. Watch with multiple quality options, subtitle support, and episode tracking. Free video streaming platform.{% endblock %}">
     <meta name="keywords" content="HD streaming, watch movies online, TV series, video player, quality selection, subtitles, episode tracker, free streaming, HD movies, online series">
-    <meta name="author" content="HD-KRLZ">
+    <meta name="author" content="HD-RZKA">
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
     <meta name="googlebot" content="index, follow">
     <link rel="canonical" href="{% block canonical %}{{ request.url }}{% endblock %}">
@@ -17,23 +17,23 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="HD-KRLZ">
+    <meta name="apple-mobile-web-app-title" content="HD-RZKA">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:title" content="{% block og_title %}HD-KRLZ - Stream HD Movies & TV Series Online{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}HD-RZKA - Stream HD Movies & TV Series Online{% endblock %}">
     <meta property="og:description" content="{% block og_description %}Watch HD movies and TV series with quality selection, subtitles, and episode tracking. Free streaming platform.{% endblock %}">
-    <meta property="og:site_name" content="HD-KRLZ">
+    <meta property="og:site_name" content="HD-RZKA">
     <meta property="og:locale" content="en_US">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="{{ request.url }}">
-    <meta name="twitter:title" content="{% block twitter_title %}HD-KRLZ - Stream HD Movies & TV Series Online{% endblock %}">
+    <meta name="twitter:title" content="{% block twitter_title %}HD-RZKA - Stream HD Movies & TV Series Online{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}Watch HD movies and TV series with quality selection, subtitles, and episode tracking. Free streaming platform.{% endblock %}">
 
-    <title>{% block title %}HD-KRLZ - Stream HD Movies & TV Series Online{% endblock %}</title>
+    <title>{% block title %}HD-RZKA - Stream HD Movies & TV Series Online{% endblock %}</title>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -97,12 +97,47 @@
         }
 
         .video-js {
-            width: 100%;
-            height: 100%;
+            width: 100% !important;
         }
 
-        .aspect-video {
-            aspect-ratio: 16 / 9;
+        /* Video player container - maintains aspect ratio of actual video */
+        .video-container {
+            width: 100%;
+            position: relative;
+        }
+
+        /* Ensure video player fills container and maintains aspect ratio */
+        .vjs-fluid,
+        .vjs-16-9,
+        .vjs-4-3 {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: 0;
+            padding-top: 56.25%; /* Default 16:9 ratio */
+        }
+
+        .vjs-fluid:not(.vjs-audio-only-mode) {
+            padding-top: 56.25%; /* 16:9 aspect ratio */
+        }
+
+        /* Force controls to ALWAYS show in non-fullscreen mode ONLY */
+        .video-js:not(.vjs-fullscreen) .vjs-control-bar {
+            display: flex !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+
+        /* In fullscreen, allow normal Video.js behavior (hide after timeout) */
+        .video-js.vjs-fullscreen .vjs-control-bar {
+            display: flex;
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Make sure user-inactive state still allows hiding in fullscreen */
+        .video-js.vjs-fullscreen.vjs-user-inactive .vjs-control-bar {
+            opacity: 0;
+            visibility: hidden;
         }
 
         .line-clamp-2 {
@@ -132,7 +167,7 @@
         <div class="container mx-auto px-2 sm:px-4 py-3 sm:py-4">
             <div class="flex items-center gap-2 sm:gap-4">
                 <a href="/" class="text-lg sm:text-2xl font-bold bg-gradient-to-r from-teal-400 to-teal-600 bg-clip-text text-transparent whitespace-nowrap flex-shrink-0">
-                    HD-KRLZ
+                    HD-RZKA
                 </a>
                 <!-- Search bar always visible -->
                 <form action="/search" method="GET" class="flex-1 flex gap-2 min-w-0" id="searchForm">
@@ -171,7 +206,7 @@
 
         <div class="container mx-auto px-4 py-6">
             <p class="text-center text-gray-500 text-sm">
-                HD-KRLZ - Powered by HdRezkaApi
+                HD-RZKA - Powered by HdRezkaApi
             </p>
         </div>
     </footer>

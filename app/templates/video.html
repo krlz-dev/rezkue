@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Watch {{ video.title }} Online - HD-KRLZ{% endblock %}
-{% block description %}Watch {{ video.title }} online in HD quality with multiple quality options and subtitle support. Stream {{ video.title }} free on HD-KRLZ.{% endblock %}
+{% block title %}Watch {{ video.title }} Online - HD-RZKA{% endblock %}
+{% block description %}Watch {{ video.title }} online in HD quality with multiple quality options and subtitle support. Stream {{ video.title }} free on HD-RZKA.{% endblock %}
 
 {% block og_type %}video.other{% endblock %}
-{% block og_title %}Watch {{ video.title }} Online - HD-KRLZ{% endblock %}
+{% block og_title %}Watch {{ video.title }} Online - HD-RZKA{% endblock %}
 {% block og_description %}Stream {{ video.title }} in HD with quality selection and subtitles. Free online streaming.{% endblock %}
 
-{% block twitter_title %}Watch {{ video.title }} Online - HD-KRLZ{% endblock %}
+{% block twitter_title %}Watch {{ video.title }} Online - HD-RZKA{% endblock %}
 {% block twitter_description %}Stream {{ video.title }} in HD with quality selection and subtitles. Free online streaming.{% endblock %}
 
 {% block content %}
@@ -86,7 +86,7 @@
         </div>
 
         <!-- Video Player -->
-        <div class="aspect-video bg-black rounded-lg overflow-hidden mb-4">
+        <div class="video-container bg-black rounded-lg mb-4">
             <video
                 id="videoPlayer"
                 class="video-js vjs-default-skin vjs-big-play-centered"
@@ -126,8 +126,15 @@ document.addEventListener('DOMContentLoaded', function() {
         controls: true,
         autoplay: false,
         preload: 'metadata',
-        fluid: true,
-        responsive: true,
+        fluid: true,              // Makes player width 100% of container
+        responsive: true,         // Maintains aspect ratio
+        aspectRatio: '16:9',      // Default aspect ratio
+        fill: false,              // Don't fill container, maintain aspect ratio
+        inactivityTimeout: 2000,  // Default timeout for activity detection
+        controlBar: {
+            remainingTimeDisplay: true,
+            fullscreenToggle: true
+        },
         html5: {
             vhs: {
                 overrideNative: true
@@ -135,6 +142,40 @@ document.addEventListener('DOMContentLoaded', function() {
             nativeVideoTracks: false,
             nativeAudioTracks: false,
             nativeTextTracks: false
+        }
+    });
+
+    // Detect and adjust aspect ratio when video loads
+    player.on('loadedmetadata', function() {
+        const videoWidth = player.videoWidth();
+        const videoHeight = player.videoHeight();
+
+        if (videoWidth && videoHeight) {
+            const aspectRatio = videoWidth + ':' + videoHeight;
+            player.aspectRatio(aspectRatio);
+            console.log('Video aspect ratio set to:', aspectRatio);
+        }
+    });
+
+    // Handle fullscreen changes - set proper inactivity timeout
+    player.on('fullscreenchange', function() {
+        if (player.isFullscreen()) {
+            // In fullscreen: hide controls after 3 seconds of inactivity
+            player.options_.inactivityTimeout = 3000;
+            console.log('Fullscreen: Controls will hide after 3s of inactivity');
+        } else {
+            // Normal mode: CSS will keep controls visible
+            player.options_.inactivityTimeout = 2000;
+            player.userActive(true); // Force controls to show immediately
+            console.log('Normal mode: Controls always visible via CSS');
+        }
+    });
+
+    // Keep controls visible in normal mode by preventing user-inactive class
+    player.on('userinactive', function() {
+        if (!player.isFullscreen()) {
+            // Immediately reactivate user in non-fullscreen mode
+            player.userActive(true);
         }
     });
 
