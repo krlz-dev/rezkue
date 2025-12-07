@@ -357,8 +357,23 @@ class HdRezkaApi():
 		priority=None, non_priority=None
 	):
 		def makeRequest(data):
-			r = requests.post(f"{self.origin}/ajax/get_cdn_series/", data=data, headers=self.HEADERS, proxies=self.proxy, cookies=self.cookies)
-			r = r.json()
+			# Use Cloudflare Worker proxy if configured
+			if self.use_cloudflare_proxy and self.cloudflare_worker_url:
+				print(f"[CLOUDFLARE_PROXY] Routing request through: {self.cloudflare_worker_url}")
+				worker_response = requests.post(
+					self.cloudflare_worker_url,
+					json={
+						'url': f"{self.origin}/ajax/get_cdn_series/",
+						'data': data,
+						'headers': dict(self.HEADERS)
+					},
+					timeout=30
+				)
+				r = worker_response.json()
+				print(f"[CLOUDFLARE_PROXY] Response received: success={r.get('success')}, has_url={bool(r.get('url'))}")
+			else:
+				r = requests.post(f"{self.origin}/ajax/get_cdn_series/", data=data, headers=self.HEADERS, proxies=self.proxy, cookies=self.cookies)
+				r = r.json()
 			if r['success'] and r['url']:
 				arr = self.clearTrash(r['url']).split(",")
 				stream = HdRezkaStream( season=season, episode=episode,

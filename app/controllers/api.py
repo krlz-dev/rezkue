@@ -18,6 +18,14 @@ from HdRezkaApi import TVSeries, Movie, FetchFailed
 
 print(f"[INIT] Using custom HdRezkaApi v{HdRezkaApi.__version__} library from lib/HdRezkaApi")
 
+# Debug: Check if Cloudflare Worker URL is configured
+import os
+cloudflare_url = os.getenv('CLOUDFLARE_WORKER_URL', '')
+if cloudflare_url:
+    print(f"[INIT] ✅ Cloudflare Worker configured: {cloudflare_url}")
+else:
+    print(f"[INIT] ⚠️  Cloudflare Worker NOT configured (env var CLOUDFLARE_WORKER_URL not set)")
+
 # Monkey-patch requests to log what's being sent
 original_post = requests.post
 
