@@ -20,7 +20,8 @@ from .errors import (LoginRequiredError, LoginFailed, FetchFailed, CaptchaError,
 
 class HdRezkaApi():
 	def __init__(self, url, proxy={}, headers={}, cookies={},
-		translators_priority=None, translators_non_priority=None
+		translators_priority=None, translators_non_priority=None,
+		use_cloudflare_proxy=None  # New: Optional Cloudflare Worker proxy
 	):
 		self.url = url.split(".html")[0] + ".html"
 		uri = urlparse(url)
@@ -30,6 +31,12 @@ class HdRezkaApi():
 		self.HEADERS = {**default_headers, **headers}
 		self._translators_priority = translators_priority or default_translators_priority
 		self._translators_non_priority = translators_non_priority or default_translators_non_priority
+
+		# Cloudflare Worker proxy configuration
+		import os
+		self.cloudflare_worker_url = os.getenv('CLOUDFLARE_WORKER_URL', '')
+		# Auto-enable if URL is set, unless explicitly disabled
+		self.use_cloudflare_proxy = use_cloudflare_proxy if use_cloudflare_proxy is not None else bool(self.cloudflare_worker_url)
 
 	def __str__(self): return f'HdRezka("{self.name}")'
 	def __repr__(self): return str(self)
@@ -286,8 +293,22 @@ class HdRezkaApi():
 				"translator_id": tr_id,
 				"action": "get_episodes"
 			}
-			r = requests.post(f"{self.origin}/ajax/get_cdn_series/", data=js, headers=self.HEADERS, proxies=self.proxy, cookies=self.cookies)
-			response = r.json()
+
+			# Use Cloudflare Worker proxy if configured
+			if self.use_cloudflare_proxy and self.cloudflare_worker_url:
+				worker_response = requests.post(
+					self.cloudflare_worker_url,
+					json={
+						'url': f"{self.origin}/ajax/get_cdn_series/",
+						'data': js,
+						'headers': dict(self.HEADERS)
+					},
+					timeout=30
+				)
+				response = worker_response.json()
+			else:
+				r = requests.post(f"{self.origin}/ajax/get_cdn_series/", data=js, headers=self.HEADERS, proxies=self.proxy, cookies=self.cookies)
+				response = r.json()
 			if response['success']:
 				seasons, episodes = self.getEpisodes(response['seasons'], response['episodes'])
 				arr[tr_id] = {
