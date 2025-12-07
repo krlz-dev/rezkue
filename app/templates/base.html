@@ -2,7 +2,25 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="description" content="HD-KRLZ - Stream movies and series with quality selection, episode navigation, and recently watched tracking.">
+    <meta name="theme-color" content="#000000">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="HD-KRLZ">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{% block og_title %}HD-KRLZ{% endblock %}">
+    <meta property="og:description" content="Stream movies and series with quality selection and episode navigation">
+    <meta property="og:site_name" content="HD-KRLZ">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}HD-KRLZ{% endblock %}">
+    <meta name="twitter:description" content="Stream movies and series with quality selection and episode navigation">
+
     <title>{% block title %}HD-KRLZ{% endblock %}</title>
 
     <!-- Tailwind CSS -->
