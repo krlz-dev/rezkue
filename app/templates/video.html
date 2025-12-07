@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+
+{% block title %}{{ video.title }} - HDRezka Player{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Video Player Section -->
+    <div class="card p-6 mb-6">
+        <!-- Video Info Header -->
+        <div class="mb-4 flex items-start gap-4">
+            {% if video.thumbnail %}
+            <img
+                src="{{ video.thumbnail }}"
+                alt="{{ video.title }}"
+                class="w-24 h-36 object-cover rounded-lg border-2 border-gray-700"
+                onerror="this.style.display='none'"
+            >
+            {% endif %}
+            <div class="flex-1">
+                <h1 class="text-3xl font-bold text-white mb-2">{{ video.title }}</h1>
+                <div class="flex items-center gap-4 text-sm">
+                    {% if video.rating %}
+                    <span class="text-teal-400">⭐ {{ video.rating }}</span>
+                    {% endif %}
+                    <span class="text-gray-400">
+                        {% if video.type == 'series' %}📺 Series{% else %}🎬 Movie{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video Player -->
+        <div class="aspect-video bg-black rounded-lg overflow-hidden mb-4">
+            <video
+                id="videoPlayer"
+                class="video-js vjs-default-skin vjs-big-play-centered"
+                controls
+                preload="auto"
+            >
+                <p class="vjs-no-js text-white">
+                    To view this video please enable JavaScript
+                </p>
+            </video>
+        </div>
+
+        <!-- Quality Selector (hidden initially, shown after stream loads) -->
+        <div id="qualitySelector" class="mb-4" style="display: none;">
+            <h3 class="text-white font-semibold mb-2">Quality</h3>
+            <div id="qualityButtons" class="flex gap-2 flex-wrap"></div>
+        </div>
+
+        <!-- Controls Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <!-- Translator Selection -->
+            <div>
+                <label class="block text-white font-semibold mb-2">Translation</label>
+                <select id="translatorSelect" class="w-full">
+                    {% for translator in video.translators %}
+                    <option
+                        value="{{ translator.id }}"
+                        {% if translator.id == video.default_translator %}selected{% endif %}
+                    >
+                        {% if translator.is_original %}⭐ {% endif %}{{ translator.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Season Selection (only for series) -->
+            {% if video.type == 'series' %}
+            <div>
+                <label class="block text-white font-semibold mb-2">Season</label>
+                <select id="seasonSelect" class="w-full">
+                    {% for season in video.seasons %}
+                    <option value="{{ season.id }}" {% if loop.first %}selected{% endif %}>
+                        {{ season.number }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Episode Selection -->
+            <div>
+                <label class="block text-white font-semibold mb-2">Episode</label>
+                <select id="episodeSelect" class="w-full">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            {% endif %}
+
+            <!-- Play Button -->
+            <div class="flex items-end">
+                <button id="playBtn" class="btn-teal w-full">
+                    ▶ Play
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status messages -->
+    <div id="statusMessage" class="card p-4 text-center text-gray-400" style="display: none;"></div>
+</div>
+
+<script>
+// Video data from server
+const videoData = {
+    url: '{{ video.url }}',
+    type: '{{ video.type }}',
+    defaultTranslator: '{{ video.default_translator }}'
+};
+
+let player = null;
+let currentQualities = [];
+let currentQualityIndex = 0;
+
+// Initialize Video.js player
+document.addEventListener('DOMContentLoaded', function() {
+    player = videojs('videoPlayer', {
+        controls: true,
+        autoplay: false,
+        preload: 'auto',
+        fluid: true,
+        responsive: true
+    });
+
+    // Load episodes if it's a series
+    {% if video.type == 'series' %}
+    loadEpisodes();
+
+    // Event listeners for series
+    document.getElementById('translatorSelect').addEventListener('change', loadEpisodes);
+    document.getElementById('seasonSelect').addEventListener('change', loadSeasonEpisodes);
+    {% endif %}
+
+    // Play button
+    document.getElementById('playBtn').addEventListener('click', playVideo);
+});
+
+{% if video.type == 'series' %}
+// Load initial episodes
+async function loadEpisodes() {
+    const translatorId = document.getElementById('translatorSelect').value;
+
+    try {
+        const response = await fetch('/api/episodes', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                video_url: videoData.url,
+                translator_id: translatorId
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Populate episode select
+            const episodeSelect = document.getElementById('episodeSelect');
+            episodeSelect.innerHTML = data.episodes.map((ep, index) =>
+                `<option value="${ep.id}" ${index === 0 ? 'selected' : ''}>${ep.number}</option>`
+            ).join('');
+        } else {
+            showStatus('Failed to load episodes: ' + data.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error loading episodes:', error);
+        showStatus('Error loading episodes', 'error');
+    }
+}
+
+// Load episodes for specific season
+async function loadSeasonEpisodes() {
+    const translatorId = document.getElementById('translatorSelect').value;
+    const seasonId = document.getElementById('seasonSelect').value;
+
+    try {
+        const response = await fetch('/api/season_episodes', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                video_url: videoData.url,
+                season_id: seasonId,
+                translator_id: translatorId
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            const episodeSelect = document.getElementById('episodeSelect');
+            episodeSelect.innerHTML = data.episodes.map((ep, index) =>
+                `<option value="${ep.id}" ${index === 0 ? 'selected' : ''}>${ep.number}</option>`
+            ).join('');
+        } else {
+            showStatus('Failed to load episodes: ' + data.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error loading season episodes:', error);
+        showStatus('Error loading season episodes', 'error');
+    }
+}
+{% endif %}
+
+// Play video
+async function playVideo() {
+    const translatorId = document.getElementById('translatorSelect').value;
+
+    {% if video.type == 'series' %}
+    const seasonId = document.getElementById('seasonSelect').value;
+    const episodeId = document.getElementById('episodeSelect').value;
+
+    if (!episodeId) {
+        showStatus('Please select an episode', 'error');
+        return;
+    }
+    {% else %}
+    const seasonId = '';
+    const episodeId = '';
+    {% endif %}
+
+    showStatus('Loading stream...', 'info');
+
+    try {
+        const response = await fetch('/api/stream', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                video_url: videoData.url,
+                translator_id: translatorId,
+                season_id: seasonId,
+                episode_id: episodeId
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.qualities && data.qualities.length > 0) {
+            currentQualities = data.qualities;
+            currentQualityIndex = 0;
+
+            // Display quality selector
+            displayQualitySelector();
+
+            // Auto-play first quality
+            loadQuality(0);
+
+            showStatus('Stream loaded successfully', 'success');
+            setTimeout(() => hideStatus(), 2000);
+        } else {
+            showStatus('Failed to get stream: ' + (data.error || 'No quality options found'), 'error');
+        }
+    } catch (error) {
+        console.error('Error getting stream:', error);
+        showStatus('Error loading stream', 'error');
+    }
+}
+
+// Display quality selector buttons
+function displayQualitySelector() {
+    const qualityButtons = document.getElementById('qualityButtons');
+    qualityButtons.innerHTML = currentQualities.map((q, index) =>
+        `<button
+            class="quality-btn ${index === 0 ? 'active' : ''}"
+            onclick="loadQuality(${index})"
+            data-quality-index="${index}"
+        >
+            ${q.quality}
+        </button>`
+    ).join('');
+
+    document.getElementById('qualitySelector').style.display = 'block';
+}
+
+// Load specific quality
+function loadQuality(index) {
+    if (index < 0 || index >= currentQualities.length) return;
+
+    currentQualityIndex = index;
+    const quality = currentQualities[index];
+
+    console.log('Loading quality:', quality.quality, quality.url);
+
+    // Update player source
+    player.src({
+        src: quality.url,
+        type: 'application/x-mpegURL'
+    });
+
+    // Auto-play
+    player.play().catch(err => {
+        console.warn('Autoplay prevented:', err);
+    });
+
+    // Update active button
+    document.querySelectorAll('.quality-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', i === index);
+    });
+}
+
+// Status message helpers
+function showStatus(message, type = 'info') {
+    const statusDiv = document.getElementById('statusMessage');
+    statusDiv.textContent = message;
+    statusDiv.className = 'card p-4 text-center';
+
+    if (type === 'error') {
+        statusDiv.className += ' bg-red-900/50 border-red-700 text-red-200';
+    } else if (type === 'success') {
+        statusDiv.className += ' bg-green-900/50 border-green-700 text-green-200';
+    } else {
+        statusDiv.className += ' text-gray-400';
+    }
+
+    statusDiv.style.display = 'block';
+}
+
+function hideStatus() {
+    document.getElementById('statusMessage').style.display = 'none';
+}
+</script>
+{% endblock %}

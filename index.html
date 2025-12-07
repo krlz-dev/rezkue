@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HDRezka Player</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Video.js for HLS support -->
+    <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet" />
+    <script src="https://vjs.zencdn.net/8.6.1/video.min.js"></script>
+
+    <style>
+        body {
+            background: #0a0e14;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        .teal-gradient {
+            background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+        }
+
+        .card {
+            background: #1a1f2e;
+            border: 1px solid #2d3748;
+            border-radius: 12px;
+        }
+
+        .card:hover {
+            border-color: #14b8a6;
+            transform: translateY(-2px);
+            transition: all 0.3s ease;
+        }
+
+        .input-dark {
+            background: #1a1f2e;
+            border: 1px solid #2d3748;
+            color: #e2e8f0;
+        }
+
+        .input-dark:focus {
+            outline: none;
+            border-color: #14b8a6;
+            box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
+        }
+
+        .btn-teal {
+            background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .btn-teal:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(20, 184, 166, 0.3);
+        }
+
+        .video-js {
+            width: 100%;
+            height: 600px;
+            border-radius: 12px;
+        }
+
+        select {
+            background: #1a1f2e;
+            border: 1px solid #2d3748;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 14px;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #14b8a6;
+            box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
+        }
+
+        .quality-btn {
+            background: #1a1f2e;
+            border: 2px solid #2d3748;
+            color: #14b8a6;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .quality-btn:hover {
+            border-color: #14b8a6;
+            background: rgba(20, 184, 166, 0.1);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-12">
+            <h1 class="text-5xl font-bold text-white mb-2">
+                <span class="bg-gradient-to-r from-teal-400 to-teal-600 bg-clip-text text-transparent">HDRezka</span>
+            </h1>
+            <p class="text-gray-400">Minimal Player</p>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="card p-6 mb-8">
+            <div class="flex gap-4">
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="Search movies or series..."
+                    class="flex-1 px-6 py-4 input-dark rounded-lg text-lg"
+                    onkeypress="if(event.key === 'Enter') searchVideos()"
+                />
+                <button
+                    onclick="searchVideos()"
+                    class="px-8 py-4 btn-teal rounded-lg font-semibold text-lg">
+                    Search
+                </button>
+            </div>
+        </div>
+
+        <!-- Video Player Section -->
+        <div id="playerSection" class="hidden mb-8">
+            <div class="card p-6">
+                <!-- Video Title -->
+                <h2 id="videoTitle" class="text-2xl font-bold text-white mb-4"></h2>
+
+                <!-- Video Player -->
+                <video
+                    id="videoPlayer"
+                    class="video-js vjs-default-skin vjs-big-play-centered mb-6"
+                    controls
+                    preload="auto">
+                </video>
+
+                <!-- Controls Grid -->
+                <div id="videoControls" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <!-- Translation Selector -->
+                    <div>
+                        <label class="text-gray-400 text-sm font-medium mb-2 block">Audio</label>
+                        <select id="translationSelect" class="w-full" onchange="onTranslationChange()">
+                            <!-- Options will be added dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Season Selector -->
+                    <div id="seasonContainer" class="hidden">
+                        <label class="text-gray-400 text-sm font-medium mb-2 block">Season</label>
+                        <select id="seasonSelect" class="w-full" onchange="onSeasonChange()">
+                            <!-- Options will be added dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Episode Selector -->
+                    <div id="episodeContainer" class="hidden">
+                        <label class="text-gray-400 text-sm font-medium mb-2 block">Episode</label>
+                        <select id="episodeSelect" class="w-full">
+                            <!-- Options will be added dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Play Button -->
+                    <div class="flex items-end">
+                        <button onclick="playSelectedVideo()" class="w-full px-6 py-3 btn-teal rounded-lg font-semibold">
+                            ▶ Play
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quality Selector (appears after getting stream) -->
+                <div id="qualitySelector" class="hidden">
+                    <!-- Quality buttons will be added here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Results -->
+        <div id="resultsSection" class="hidden">
+            <h2 class="text-2xl font-bold text-white mb-6">Search Results</h2>
+            <div id="searchResults" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                <!-- Results will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let player;
+        let currentVideoData = null;
+
+        // Initialize video player
+        function initPlayer() {
+            if (player) {
+                player.dispose();
+            }
+            player = videojs('videoPlayer', {
+                controls: true,
+                autoplay: false,
+                preload: 'auto',
+                fluid: false,
+                html5: {
+                    hls: {
+                        enableLowInitialPlaylist: true,
+                        smoothQualityChange: true,
+                        overrideNative: true
+                    }
+                }
+            });
+        }
+
+        // Play video function
+        function playVideo(title, url) {
+            console.log('Playing:', title, url);
+
+            // Show player section
+            document.getElementById('playerSection').classList.remove('hidden');
+            document.getElementById('qualitySelector').classList.add('hidden');
+
+            // Initialize or reuse player
+            if (!player) {
+                initPlayer();
+            }
+
+            // Set source and play
+            player.src({
+                src: url,
+                type: 'application/x-mpegURL'
+            });
+
+            // Scroll to player
+            document.getElementById('playerSection').scrollIntoView({ behavior: 'smooth' });
+
+            player.ready(function() {
+                player.play().catch(err => {
+                    console.error('Playback error:', err);
+                    alert('Error playing video. The stream URL might be expired or invalid.');
+                });
+            });
+        }
+
+        // Search function
+        async function searchVideos() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                alert('Please enter a search term');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('searchResults');
+            const resultsSection = document.getElementById('resultsSection');
+            resultsSection.classList.remove('hidden');
+            resultsDiv.innerHTML = '<div class="col-span-full text-gray-400 text-center py-8">Searching...</div>';
+
+            try {
+                const response = await fetch(`http://localhost:5001/api/search?q=${encodeURIComponent(query)}`);
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch search results');
+                }
+
+                const data = await response.json();
+                const results = data.results || [];
+
+                if (results.length === 0) {
+                    resultsDiv.innerHTML = `
+                        <div class="col-span-full text-gray-400 text-center py-8">
+                            No results found for "${query}"
+                        </div>
+                    `;
+                    return;
+                }
+
+                resultsDiv.innerHTML = results.map(result => `
+                    <div class="card p-4 cursor-pointer"
+                         onclick='openVideo("${result.url}", "${result.title.replace(/'/g, "\\'")}","${result.id}")'>
+                        <div class="aspect-[2/3] bg-gray-800 rounded-lg mb-3 overflow-hidden">
+                            ${result.poster ? `
+                                <img src="${result.poster}"
+                                     alt="${result.title}"
+                                     class="w-full h-full object-cover"
+                                     onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'flex items-center justify-center h-full\\'><span class=\\'text-gray-600 text-4xl\\'>🎬</span></div>'">
+                            ` : `
+                                <div class="flex items-center justify-center h-full">
+                                    <span class="text-gray-600 text-4xl">🎬</span>
+                                </div>
+                            `}
+                        </div>
+                        <h3 class="text-white font-semibold text-sm mb-1 line-clamp-2">${result.title}</h3>
+                        <p class="text-gray-400 text-xs">${result.info}</p>
+                    </div>
+                `).join('');
+
+                console.log('Search results:', results);
+
+            } catch (error) {
+                console.error('Search error:', error);
+                resultsDiv.innerHTML = `
+                    <div class="col-span-full card p-6">
+                        <p class="text-red-400 text-center mb-3">
+                            Error: ${error.message}
+                        </p>
+                        <p class="text-gray-400 text-sm text-center">
+                            Make sure the API server is running:<br>
+                            <code class="bg-gray-900 px-2 py-1 rounded text-teal-400">python3 api_server.py</code>
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        // Open video page to get translations and stream URLs
+        async function openVideo(url, title, videoId) {
+            console.log('Opening video:', url, title, videoId);
+
+            const playerSection = document.getElementById('playerSection');
+            const videoTitle = document.getElementById('videoTitle');
+            playerSection.classList.remove('hidden');
+            videoTitle.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <div class="animate-pulse w-20 h-28 bg-gray-700 rounded-lg"></div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-white">${title}</h2>
+                        <p class="text-gray-400 text-sm mt-2">Loading...</p>
+                    </div>
+                </div>
+            `;
+
+            // Scroll to player
+            playerSection.scrollIntoView({ behavior: 'smooth' });
+
+            try {
+                const response = await fetch('http://localhost:5001/api/video_page', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch video page');
+                }
+
+                const data = await response.json();
+                currentVideoData = data;
+
+                buildVideoUI(data, title);
+
+            } catch (error) {
+                console.error('Error fetching video page:', error);
+                videoTitle.innerHTML = `
+                    ${title}
+                    <p class="text-sm text-red-400 mt-2">Error loading video details</p>
+                `;
+            }
+        }
+
+        // Build the video UI with selectors
+        function buildVideoUI(data, title) {
+            const videoTitle = document.getElementById('videoTitle');
+            const translations = data.translations || [];
+            const seasons = data.seasons || [];
+            const type = data.type;
+
+            // Set title with optional poster and rating
+            let titleHTML = `<div class="flex items-start gap-4">`;
+
+            if (data.thumbnail) {
+                titleHTML += `
+                    <img src="${data.thumbnail}"
+                         alt="${title}"
+                         class="w-24 h-36 object-cover rounded-lg border-2 border-gray-700"
+                         onerror="this.style.display='none'">
+                `;
+            }
+
+            titleHTML += `
+                <div class="flex-1">
+                    <h2 class="text-2xl font-bold text-white mb-1">${title}</h2>
+                    ${data.rating ? `<p class="text-teal-400 text-sm">⭐ ${data.rating}</p>` : ''}
+                    <p class="text-gray-400 text-sm mt-1">${type === 'series' ? '📺 Series' : '🎬 Movie'}</p>
+                </div>
+            </div>`;
+
+            videoTitle.innerHTML = titleHTML;
+
+            // Translation selector
+            const translationSelect = document.getElementById('translationSelect');
+            if (translations.length > 0) {
+                translationSelect.innerHTML = translations.map(t => `
+                    <option value="${t.id}" ${t.is_original ? 'selected' : ''}>
+                        ${t.is_original ? '⭐ ' : ''}${t.name}
+                    </option>
+                `).join('');
+            }
+
+            // Show/hide season and episode selectors
+            const seasonContainer = document.getElementById('seasonContainer');
+            const episodeContainer = document.getElementById('episodeContainer');
+
+            if (type === 'series' && seasons.length > 0) {
+                seasonContainer.classList.remove('hidden');
+                episodeContainer.classList.remove('hidden');
+
+                const seasonSelect = document.getElementById('seasonSelect');
+                seasonSelect.innerHTML = seasons.map((s, index) => `
+                    <option value="${s.id}" ${index === 0 ? 'selected' : ''}>${s.number}</option>
+                `).join('');
+
+                // Load episodes for first season
+                loadInitialEpisodes();
+            } else {
+                seasonContainer.classList.add('hidden');
+                episodeContainer.classList.add('hidden');
+            }
+
+            // Show video controls
+            document.getElementById('videoControls').classList.remove('hidden');
+        }
+
+        // Load initial episodes
+        async function loadInitialEpisodes() {
+            const episodeSelect = document.getElementById('episodeSelect');
+            episodeSelect.innerHTML = '<option value="">Loading...</option>';
+
+            try {
+                const translationId = document.getElementById('translationSelect')?.value || currentVideoData.default_translator;
+
+                const response = await fetch('http://localhost:5001/api/episodes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        video_url: currentVideoData.url,
+                        translator_id: translationId
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load episodes');
+                }
+
+                const data = await response.json();
+                const episodes = data.episodes || [];
+
+                if (episodes.length > 0) {
+                    episodeSelect.innerHTML = episodes.map(e => `
+                        <option value="${e.id}">${e.number}</option>
+                    `).join('');
+                } else {
+                    episodeSelect.innerHTML = '<option value="">No episodes found</option>';
+                }
+
+            } catch (error) {
+                console.error('Error loading episodes:', error);
+                episodeSelect.innerHTML = '<option value="">Error loading episodes</option>';
+            }
+        }
+
+        // Season switching
+        async function loadEpisodesForSeason(seasonId) {
+            const episodeSelect = document.getElementById('episodeSelect');
+            episodeSelect.innerHTML = '<option value="">Loading...</option>';
+
+            try {
+                const translationId = document.getElementById('translationSelect')?.value;
+
+                const response = await fetch('http://localhost:5001/api/season_episodes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        video_url: currentVideoData.url,
+                        season_id: seasonId,
+                        translator_id: translationId
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load season episodes');
+                }
+
+                const data = await response.json();
+                const episodes = data.episodes || [];
+
+                if (episodes.length > 0) {
+                    episodeSelect.innerHTML = episodes.map(e => `
+                        <option value="${e.id}">${e.number}</option>
+                    `).join('');
+                } else {
+                    episodeSelect.innerHTML = '<option value="">No episodes found</option>';
+                }
+
+            } catch (error) {
+                console.error('Error loading season episodes:', error);
+                episodeSelect.innerHTML = '<option value="">Error loading episodes</option>';
+            }
+        }
+
+        // Handle season change
+        function onSeasonChange() {
+            const seasonId = document.getElementById('seasonSelect').value;
+            loadEpisodesForSeason(seasonId);
+        }
+
+        // Handle translation change
+        function onTranslationChange() {
+            if (currentVideoData.type === 'series') {
+                loadInitialEpisodes();
+            }
+        }
+
+        // Show quality selector UI
+        function showQualitySelector(matches, title) {
+            const qualitySelector = document.getElementById('qualitySelector');
+            qualitySelector.classList.remove('hidden');
+
+            let html = `
+                <div class="border-t border-gray-700 pt-6 mt-2">
+                    <h3 class="text-white font-semibold mb-4 text-lg">Select Quality</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            `;
+
+            matches.forEach((match, i) => {
+                const quality = match[1];
+                const url = match[2];
+                const safeTitle = title.replace(/'/g, "\\'");
+                const safeUrl = url.replace(/'/g, "\\'");
+
+                html += `
+                    <button
+                        onclick='playQuality("${safeTitle} - ${quality}", "${safeUrl}")'
+                        class="quality-btn">
+                        ${quality}
+                    </button>
+                `;
+            });
+
+            html += `
+                    </div>
+                    <p class="text-gray-500 text-sm mt-4">
+                        Higher quality requires faster internet connection
+                    </p>
+                </div>
+            `;
+
+            qualitySelector.innerHTML = html;
+
+            // Smooth scroll to quality selector
+            setTimeout(() => {
+                qualitySelector.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
+        }
+
+        // Play video with selected quality
+        function playQuality(title, url) {
+            console.log('Playing quality:', title, url);
+            playVideo(title, url);
+        }
+
+        // Play selected video
+        async function playSelectedVideo() {
+            if (!currentVideoData) return;
+
+            const translationId = document.getElementById('translationSelect')?.value || currentVideoData.default_translator;
+            const seasonId = document.getElementById('seasonSelect')?.value || '';
+            const episodeId = document.getElementById('episodeSelect')?.value || '';
+
+            console.log('Playing:', {
+                video_id: currentVideoData.video_id,
+                translation: translationId,
+                season: seasonId,
+                episode: episodeId
+            });
+
+            try {
+                const response = await fetch('http://localhost:5001/api/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        id: currentVideoData.video_id,
+                        translator_id: translationId,
+                        season_id: seasonId,
+                        episode_id: episodeId,
+                        video_url: currentVideoData.url
+                    })
+                });
+
+                const data = await response.json();
+                console.log('Stream API response:', data);
+
+                if (data.success) {
+                    const encodedUrl = data.url || '';
+                    const qualityField = data.quality || '';
+
+                    // Try to find URLs with quality labels
+                    const urlRegex = /\[(\d+p[^\]]*)\](https?:\/\/[^\s,\[]+(?:\.m3u8|\.mp4))/g;
+                    let matches = [...encodedUrl.matchAll(urlRegex)];
+
+                    if (matches.length === 0) {
+                        matches = [...qualityField.matchAll(urlRegex)];
+                    }
+
+                    if (matches.length === 0) {
+                        const simpleRegex = /(https?:\/\/stream\.voidboost\.cc\/[^\s,]+(?:\.m3u8|:hls:manifest\.m3u8|\.mp4))/g;
+                        const simpleMatches = [...encodedUrl.matchAll(simpleRegex)];
+
+                        if (simpleMatches.length > 0) {
+                            matches = simpleMatches.map((m, i) => {
+                                const qualities = ['480p', '720p', '1080p', '1080p Ultra'];
+                                return [null, qualities[i] || `Quality ${i+1}`, m[1]];
+                            });
+                        }
+                    }
+
+                    console.log(`Found ${matches.length} quality options`);
+
+                    if (matches.length > 0) {
+                        showQualitySelector(matches, currentVideoData.title);
+                    } else {
+                        console.error('No stream URLs found in response');
+                        alert('Could not extract stream URLs. Response logged to console.');
+                    }
+                } else {
+                    console.error('API returned error:', data);
+                    alert(`Failed to get stream URL.\n\nError: ${data.error || data.message || 'Unknown'}`);
+                }
+
+            } catch (error) {
+                console.error('Error getting stream:', error);
+                alert('Error getting stream URL.');
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('HDRezka Player loaded');
+        });
+    </script>
+</body>
+</html>
