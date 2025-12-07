@@ -1,17 +1,22 @@
 """
 API controller - AJAX endpoints for dynamic content
 """
-from flask import Blueprint, jsonify, request
-from app.models import Episode, Quality
-import requests
 import sys
 import os
 
-# Add local lib to path to use our customized HdRezkaApi
+# Add local lib to path FIRST before any HdRezkaApi imports
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'lib'))
-from HdRezkaApi import HdRezkaApi
 
-print("[INIT] Using custom HdRezkaApi library from lib/HdRezkaApi")
+from flask import Blueprint, jsonify, request
+from app.models import Episode, Quality
+import requests
+
+# Now import HdRezkaApi from local lib
+import HdRezkaApi
+from HdRezkaApi import HdRezkaApi as HdRezkaApiClass
+from HdRezkaApi import TVSeries, Movie, FetchFailed
+
+print(f"[INIT] Using custom HdRezkaApi v{HdRezkaApi.__version__} library from lib/HdRezkaApi")
 
 # Monkey-patch requests to log what's being sent
 original_post = requests.post
@@ -58,6 +63,12 @@ def get_headers(video_url='https://rezka.ag'):
         'sec-ch-ua-platform': '"Windows"'
     }
 
+def get_cookies():
+    """Get default cookies for API requests"""
+    return {
+        'hdmbbs': '1'  # Required cookie for API access
+    }
+
 
 @api_bp.route('/episodes', methods=['POST'])
 def get_episodes():
@@ -73,7 +84,7 @@ def get_episodes():
         print(f"[EPISODES] Getting episodes for: {video_url}")
 
         try:
-            rezka = HdRezkaApi(video_url, headers=get_headers(video_url))
+            rezka = HdRezkaApiClass(video_url, headers=get_headers(video_url), cookies=get_cookies())
             print(f"[EPISODES] Content type: {rezka.type}")
             print(f"[EPISODES] Available translators: {list(rezka.translators.keys()) if hasattr(rezka, 'translators') else 'None'}")
         except Exception as e:
@@ -85,48 +96,31 @@ def get_episodes():
                 'error': 'Unable to access content. The source may be blocking requests or the URL is invalid.'
             }), 503
 
-        if rezka.type != 'tv_series':
+        if rezka.type != TVSeries():
             return jsonify({
                 'success': False,
                 'error': 'Not a series'
             }), 400
 
-        # Get seriesInfo
-        if not hasattr(rezka, 'seriesInfo') or not rezka.seriesInfo:
+        # Get episodesInfo using new API
+        if not hasattr(rezka, 'episodesInfo') or not rezka.episodesInfo:
             return jsonify({
                 'success': False,
                 'error': 'No series info found'
             }), 404
 
-        # Find translator by ID or use first
-        translator_name = None
-        if translator_id:
-            for name, tid in rezka.translators.items():
-                if str(tid) == str(translator_id):
-                    translator_name = name
-                    break
-
-        if not translator_name:
-            translator_name = list(rezka.seriesInfo.keys())[0]
-
-        series_data = rezka.seriesInfo[translator_name]
-        seasons_data = series_data.get('seasons', {})
-        episodes_data = series_data.get('episodes', {})
-
         # Format all seasons
         seasons_formatted = [
-            {'id': str(s), 'number': f"Season {s}"}
-            for s in sorted(seasons_data.keys())
+            {'id': str(season['season']), 'number': f"Season {season['season']}"}
+            for season in rezka.episodesInfo
         ]
 
         # Get first season episodes
-        if seasons_data:
-            first_season = sorted(seasons_data.keys())[0]
-            first_season_episodes = episodes_data.get(first_season, {})
-
+        if rezka.episodesInfo and len(rezka.episodesInfo) > 0:
+            first_season = rezka.episodesInfo[0]
             episodes_formatted = [
-                {'id': str(ep), 'number': f"Episode {ep}"}
-                for ep in sorted(first_season_episodes.keys())
+                {'id': str(ep['episode']), 'number': f"Episode {ep['episode']}"}
+                for ep in first_season['episodes']
             ]
         else:
             episodes_formatted = []
@@ -161,7 +155,7 @@ def get_season_episodes():
         print(f"[SEASON_EPISODES] Getting episodes for season {season_id}")
 
         try:
-            rezka = HdRezkaApi(video_url, headers=get_headers(video_url))
+            rezka = HdRezkaApiClass(video_url, headers=get_headers(video_url), cookies=get_cookies())
             print(f"[SEASON_EPISODES] Content type: {rezka.type}")
         except Exception as e:
             print(f"[ERROR] Failed to initialize HdRezkaApi: {e}")
@@ -172,38 +166,24 @@ def get_season_episodes():
                 'error': 'Unable to access content. The source may be blocking requests or the URL is invalid.'
             }), 503
 
-        if rezka.type != 'tv_series':
+        if rezka.type != TVSeries():
             return jsonify({
                 'success': False,
                 'error': 'Not a series'
             }), 400
 
-        # Get seriesInfo
-        if not hasattr(rezka, 'seriesInfo') or not rezka.seriesInfo:
+        # Get episodesInfo
+        if not hasattr(rezka, 'episodesInfo') or not rezka.episodesInfo:
             return jsonify({
                 'success': False,
                 'error': 'No series info found'
             }), 404
 
-        # Find translator by ID or use first
-        translator_name = None
-        if translator_id:
-            for name, tid in rezka.translators.items():
-                if str(tid) == str(translator_id):
-                    translator_name = name
-                    break
-
-        if not translator_name:
-            translator_name = list(rezka.seriesInfo.keys())[0]
-
-        series_data = rezka.seriesInfo[translator_name]
-        episodes_data = series_data.get('episodes', {})
-
         # Get episodes for the specified season
         season_num = int(season_id)
-        season_episodes = episodes_data.get(season_num, {})
+        season_data = next((s for s in rezka.episodesInfo if s['season'] == season_num), None)
 
-        if not season_episodes:
+        if not season_data:
             return jsonify({
                 'success': False,
                 'error': f'Season {season_num} not found'
@@ -211,8 +191,8 @@ def get_season_episodes():
 
         # Format episodes
         episodes_formatted = [
-            {'id': str(ep), 'number': f"Episode {ep}"}
-            for ep in sorted(season_episodes.keys())
+            {'id': str(ep['episode']), 'number': f"Episode {ep['episode']}"}
+            for ep in season_data['episodes']
         ]
 
         print(f"[SUCCESS] Found {len(episodes_formatted)} episodes in season {season_num}")
@@ -246,15 +226,16 @@ def get_stream_url():
         print(f"[STREAM] Getting stream for: {video_url}")
         print(f"  Translator: {translator_id}, Season: {season_id}, Episode: {episode_id}")
 
-        # Initialize HdRezkaApi with proper headers
+        # Initialize HdRezkaApi with proper headers and cookies
         try:
             headers = get_headers(video_url)
+            cookies = get_cookies()
             print(f"[DEBUG] Headers being sent:")
             for key, value in headers.items():
                 print(f"  {key}: {value}")
+            print(f"[DEBUG] Cookies: {cookies}")
 
-            rezka = HdRezkaApi(video_url, headers=headers)
-            print(f"[DEBUG] HdRezkaApi initialized with headers: {rezka.HEADERS}")
+            rezka = HdRezkaApiClass(video_url, headers=headers, cookies=cookies)
             print(f"[STREAM] Content type: {rezka.type}")
             print(f"[STREAM] Available translators: {list(rezka.translators.keys()) if hasattr(rezka, 'translators') else 'None'}")
         except Exception as e:
@@ -269,7 +250,7 @@ def get_stream_url():
         # Get the stream based on video type
         stream = None
         try:
-            if rezka.type == 'tv_series':
+            if rezka.type == TVSeries():
                 # Series - need season and episode
                 if not season_id or not episode_id or season_id == 'null' or episode_id == 'null':
                     return jsonify({
@@ -282,25 +263,25 @@ def get_stream_url():
 
                 # Get stream - translator ID must be int if provided
                 if translator_id and translator_id != 'null':
-                    stream = rezka.getStream(season=str(season_num), episode=str(episode_num), translation=int(translator_id))
+                    stream = rezka.getStream(season=season_num, episode=episode_num, translation=int(translator_id))
                 else:
-                    stream = rezka.getStream(season=str(season_num), episode=str(episode_num))
+                    stream = rezka.getStream(season=season_num, episode=episode_num)
             else:
                 # Movie - no season/episode needed
                 if translator_id and translator_id != 'null':
                     stream = rezka.getStream(translation=int(translator_id))
                 else:
                     stream = rezka.getStream()
-        except AttributeError as e:
-            # This catches the 'bool' object has no attribute 'replace' error
+        except FetchFailed as e:
+            # This is raised when API returns success: true but url: false
             error_msg = str(e)
-            print(f"[ERROR] API returned unexpected data type: {error_msg}")
-            print(f"[ERROR] The server may be blocking API requests or returned invalid data")
+            print(f"[ERROR] FetchFailed: {error_msg}")
+            print(f"[ERROR] This is likely IP-based blocking from datacenter/cloud hosting")
             import traceback
             traceback.print_exc()
             return jsonify({
                 'success': False,
-                'error': 'Unable to access video stream. The server returned invalid data. This translator may not be available for this content.'
+                'error': 'Unable to access video stream. The server is blocking requests from this IP address. See IP_BLOCKING_ISSUE.md for solutions.'
             }), 503
         except Exception as e:
             print(f"[ERROR] Failed to get stream: {e}")

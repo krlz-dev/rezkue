@@ -1,8 +1,14 @@
 """
 Main controller - home page and search
 """
+import sys
+import os
+
+# Add local lib to path FIRST before any HdRezkaApi imports
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'lib'))
+
 from flask import Blueprint, render_template, request, jsonify, send_from_directory
-from HdRezkaApi import HdRezkaApi
+from HdRezkaApi import HdRezkaApi as HdRezkaApiClass
 try:
     from HdRezkaApi import HdRezkaSearch
 except ImportError:
@@ -11,7 +17,6 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 from app.models import SearchResult, extract_video_id
-import os
 
 main_bp = Blueprint('main', __name__)
 
