@@ -1,8 +1,2 @@
 User-agent: *
-Allow: /
-Allow: /search
-Allow: /watch
-
-Disallow: /api/
-
-Sitemap: /sitemap.xml
+Disallow: /

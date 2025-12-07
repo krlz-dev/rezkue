@@ -4,13 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
 
-    <!-- SEO Meta Tags -->
-    <meta name="description" content="{% block description %}HD-RZKA - Stream HD movies and TV series online. Watch with multiple quality options, subtitle support, and episode tracking. Free video streaming platform.{% endblock %}">
-    <meta name="keywords" content="HD streaming, watch movies online, TV series, video player, quality selection, subtitles, episode tracker, free streaming, HD movies, online series">
-    <meta name="author" content="HD-RZKA">
-    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
-    <meta name="googlebot" content="index, follow">
-    <link rel="canonical" href="{% block canonical %}{{ request.url }}{% endblock %}">
+    <!-- Prevent Search Engine Indexing -->
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="googlebot" content="noindex, nofollow">
+    <meta name="bingbot" content="noindex, nofollow">
+    <meta name="yandex" content="noindex, nofollow">
 
     <!-- Mobile & PWA -->
     <meta name="theme-color" content="#000000">
@@ -19,21 +17,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="HD-RZKA">
 
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
-    <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:title" content="{% block og_title %}HD-RZKA - Stream HD Movies & TV Series Online{% endblock %}">
-    <meta property="og:description" content="{% block og_description %}Watch HD movies and TV series with quality selection, subtitles, and episode tracking. Free streaming platform.{% endblock %}">
-    <meta property="og:site_name" content="HD-RZKA">
-    <meta property="og:locale" content="en_US">
-
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:url" content="{{ request.url }}">
-    <meta name="twitter:title" content="{% block twitter_title %}HD-RZKA - Stream HD Movies & TV Series Online{% endblock %}">
-    <meta name="twitter:description" content="{% block twitter_description %}Watch HD movies and TV series with quality selection, subtitles, and episode tracking. Free streaming platform.{% endblock %}">
-
-    <title>{% block title %}HD-RZKA - Stream HD Movies & TV Series Online{% endblock %}</title>
+    <title>{% block title %}HD-RZKA{% endblock %}</title>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
