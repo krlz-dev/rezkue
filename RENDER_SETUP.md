@@ -1,83 +1,117 @@
 # Render Deployment Setup
 
-## Configure Build Command
+## Quick Start
 
-To enable Playwright browser automation on Render, you need to configure the build command:
+HD-RZKA is ready to deploy on Render with minimal configuration.
 
-1. Go to your Render dashboard
-2. Select your web service
-3. Go to **Settings**
-4. Find the **Build Command** field
-5. Set it to: `./build.sh`
-6. Click **Save Changes**
+## Render Configuration
 
-## What the Build Script Does
+### 1. Build Command
+```bash
+./build.sh
+```
 
-The `build.sh` script:
-- Installs Python dependencies from `requirements.txt`
-- Installs Playwright Chromium browser with system dependencies
-- Prepares the environment for browser automation
+Or manually:
+```bash
+pip install -r requirements.txt
+```
 
-## How the Fallback Works
+### 2. Start Command
+```bash
+gunicorn run:app --bind 0.0.0.0:$PORT
+```
 
-When the HdRezkaApi library is blocked (returning 503 errors):
+### 3. Environment Variables (Optional)
 
-1. **Primary Method**: Tries HdRezkaApi with browser headers
-2. **Fallback Method**: If blocked, launches Playwright browser
-3. **Browser Automation**: Navigates to the video page like a real user
-4. **Stream Capture**: Intercepts AJAX requests to get stream URLs
-5. **Success**: Returns stream data to the client
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | 5001 |
+| `FLASK_ENV` | Environment mode | production |
+| `DEBUG` | Debug mode | False |
+
+## What Gets Installed
+
+The build process installs:
+- Flask 3.0.0 (web framework)
+- Gunicorn 21.2.0 (production WSGI server)
+- HdRezkaApi 7.1.0 (video API library)
+- BeautifulSoup4 4.12.3 (HTML parsing)
+- Flask-CORS 4.0.0 (CORS support)
+- Requests 2.31.0 (HTTP library)
+
+## How It Works
+
+1. **API Requests**: Uses proper headers (Origin, Referer) to bypass blocking
+2. **No Browser Automation**: Simple HTTP requests - fast and lightweight
+3. **Low Resource Usage**: No headless browsers, minimal memory footprint
 
 ## Monitoring
 
 Check your Render logs for these indicators:
 
-**Success (API method):**
+**Success:**
 ```
 [STREAM] Content type: tv_series
-[STREAM] Available translators: ['Translator 1', 'Translator 2']
+[STREAM] Available translators: ['HDrezka Studio', 'Дубляж']
 [SUCCESS] Found 4 quality options
 ```
 
-**Success (Playwright fallback):**
+**API Blocked (check headers):**
 ```
-[ERROR] Failed to initialize HdRezkaApi: ...
-[FALLBACK] Trying Playwright for blocked initialization...
-[PLAYWRIGHT] Navigating to https://rezka.ag/...
-[PLAYWRIGHT] Successfully captured 4 quality options
-[FALLBACK] Success! Found 4 quality options
+[ERROR] API returned unexpected data type: 'bool' object has no attribute 'replace'
+[ERROR] The server may be blocking API requests
 ```
 
-**Failure:**
-```
-[FALLBACK] Failed: Browser automation timeout
-```
+## Performance
 
-## Performance Notes
-
-- Playwright fallback adds 3-10 seconds to response time
-- Uses more memory than API calls
-- Only activates when API method is blocked
-- Consider upgrading Render plan if using fallback frequently
+- **Response Time**: 1-3 seconds for stream requests
+- **Memory Usage**: ~150-200MB
+- **Recommended Plan**: Render Free tier works fine
 
 ## Troubleshooting
 
-If Playwright fails:
-- Ensure build command is set to `./build.sh`
-- Check that `playwright==1.41.0` is in requirements.txt
-- Verify sufficient memory (recommend 512MB minimum)
-- Check logs for Chromium installation errors
+### Build Fails
+- Ensure `build.sh` has execute permissions: `chmod +x build.sh`
+- Check Python version (should be 3.8+)
 
-## Alternative: Render Environment Variables
+### Stream Requests Fail
+- Check if HdRezkaApi is blocked (error logs will show)
+- Verify headers are being sent correctly
+- Test locally: `DEBUG=true python3 run.py`
 
-If you prefer not to use the build script, you can manually configure:
+### Server Won't Start
+- Ensure Gunicorn is in requirements.txt
+- Verify start command uses correct port binding
+- Check Render logs for startup errors
+
+## Alternative Configuration
+
+If you prefer not to use the build script:
 
 **Build Command:**
 ```bash
-pip install -r requirements.txt && playwright install --with-deps chromium
+pip install -r requirements.txt
 ```
 
-**Start Command:**
+**Start Command (Development):**
 ```bash
 python run.py
 ```
+
+**Start Command (Production):**
+```bash
+gunicorn run:app --bind 0.0.0.0:$PORT --workers 2
+```
+
+## Resource Requirements
+
+- **CPU**: Minimal (0.1 CPU)
+- **Memory**: 256MB minimum, 512MB recommended
+- **Disk**: <100MB
+
+## Notes
+
+- No browser automation needed (removed Playwright dependency)
+- Uses simple HTTP requests with proper headers
+- Fast, lightweight, and cost-effective
+- Works on Render's free tier
