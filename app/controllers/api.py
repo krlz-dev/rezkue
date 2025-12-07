@@ -46,6 +46,11 @@ api_bp = Blueprint('api', __name__)
 # Browser-like headers to avoid detection/blocking
 def get_headers(video_url='https://rezka.ag'):
     """Generate headers with proper Origin and Referer for AJAX requests"""
+    import random
+
+    # Generate a random residential-looking IP
+    fake_ip = f"{random.randint(1, 223)}.{random.randint(1, 255)}.{random.randint(1, 255)}.{random.randint(1, 255)}"
+
     return {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': '*/*',
@@ -55,6 +60,8 @@ def get_headers(video_url='https://rezka.ag'):
         'Origin': 'https://rezka.ag',
         'Referer': video_url,
         'X-Requested-With': 'XMLHttpRequest',
+        'X-Forwarded-For': fake_ip,  # Attempt to spoof source IP
+        'X-Real-IP': fake_ip,          # Alternative IP header
         'Sec-Fetch-Dest': 'empty',
         'Sec-Fetch-Mode': 'cors',
         'Sec-Fetch-Site': 'same-origin',
