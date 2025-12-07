@@ -3,8 +3,14 @@
 HDRezka MVC Application - Entry Point
 Run this file to start the web application
 """
-from app import create_app
+import sys
 import os
+
+# Force unbuffered output so logs appear in real-time
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+
+from app import create_app
 
 # Create the Flask application
 app = create_app(os.getenv('FLASK_ENV', 'development'))
