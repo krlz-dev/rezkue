@@ -7,11 +7,18 @@ HD-RZKA is ready to deploy on Render with minimal configuration.
 ## Render Configuration
 
 ### 1. Build Command
+
+**Option 1 (Recommended):**
 ```bash
-./build.sh
+chmod +x build.sh && ./build.sh
 ```
 
-Or manually:
+**Option 2 (Alternative):**
+```bash
+bash build.sh
+```
+
+**Option 3 (Direct):**
 ```bash
 pip install -r requirements.txt
 ```
