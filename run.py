@@ -10,26 +10,8 @@ import os
 app = create_app(os.getenv('FLASK_ENV', 'development'))
 
 if __name__ == '__main__':
-    print("=" * 60)
-    print("HDRezka MVC Application")
-    print("=" * 60)
-    print("Starting server on http://localhost:5001")
-    print("\nEndpoints:")
-    print("  GET  /              - Home page with search")
-    print("  GET  /search?q=...  - Search for videos")
-    print("  GET  /watch?url=... - Video player")
-    print("  POST /api/episodes  - Get episodes for series")
-    print("  POST /api/season_episodes - Get season episodes")
-    print("  POST /api/stream    - Get stream URLs")
-    print("  GET  /health        - Health check")
-    print("=" * 60)
-    print("\n✨ Using HdRezkaApi library for reliable access!")
-    print("   - No more anti-bot blocking")
-    print("   - Proper stream URL decoding")
-    print("   - Season/episode switching works!")
-    print("   - MVC architecture with Jinja2 templates")
-    print("=" * 60)
-    print()
+    # Get debug mode from environment variable (default: False for production)
+    debug_mode = os.getenv('DEBUG', 'False').lower() == 'true'
 
     # Run the application
-    app.run(debug=True, port=5001, host='0.0.0.0')
+    app.run(debug=debug_mode, port=5001, host='0.0.0.0')
