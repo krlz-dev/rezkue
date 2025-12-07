@@ -199,3 +199,14 @@ def robots_txt():
         return """User-agent: *
 Allow: /
 Disallow: /api/""", 200, {'Content-Type': 'text/plain'}
+
+
+@main_bp.route('/googleea6b978fd10b00ad.html')
+def google_verification():
+    """Serve Google Search Console verification file"""
+    try:
+        static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
+        return send_from_directory(static_dir, 'googleea6b978fd10b00ad.html', mimetype='text/html')
+    except Exception as e:
+        print(f"[ERROR] Serving Google verification file: {e}")
+        return "google-site-verification: googleea6b978fd10b00ad.html", 200, {'Content-Type': 'text/html'}
