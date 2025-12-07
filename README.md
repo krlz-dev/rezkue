@@ -1,4 +1,4 @@
-# HD-RZK
+# HD-KRLZ
 
 A minimalistic web player built with Flask and Video.js.
 
