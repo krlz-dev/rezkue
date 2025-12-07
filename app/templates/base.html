@@ -112,19 +112,6 @@
             overflow: hidden;
         }
 
-        /* Loading dots animation */
-        @keyframes loadingDots {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60% { content: '...'; }
-            80%, 100% { content: '.'; }
-        }
-
-        .loading-dots::after {
-            content: '.';
-            animation: loadingDots 1.5s infinite;
-        }
-
         .btn-teal:disabled {
             opacity: 0.7;
             cursor: not-allowed;
@@ -142,22 +129,22 @@
 <body class="min-h-screen">
     <!-- Header -->
     <header class="border-b border-gray-900 bg-black sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-4">
-            <div class="flex items-center gap-6">
-                <a href="/" class="text-2xl font-bold bg-gradient-to-r from-teal-400 to-teal-600 bg-clip-text text-transparent whitespace-nowrap">
+        <div class="container mx-auto px-2 sm:px-4 py-3 sm:py-4">
+            <div class="flex items-center gap-2 sm:gap-4">
+                <a href="/" class="text-lg sm:text-2xl font-bold bg-gradient-to-r from-teal-400 to-teal-600 bg-clip-text text-transparent whitespace-nowrap flex-shrink-0">
                     HD-KRLZ
                 </a>
                 <!-- Search bar always visible -->
-                <form action="/search" method="GET" class="flex-1 flex gap-2" id="searchForm">
+                <form action="/search" method="GET" class="flex-1 flex gap-2 min-w-0" id="searchForm">
                     <input
                         type="text"
                         name="q"
-                        placeholder="Search movies & series..."
-                        class="flex-1 px-4 py-2"
+                        placeholder="Search..."
+                        class="flex-1 px-2 sm:px-4 py-2 text-sm sm:text-base min-w-0"
                         value="{{ query if query else '' }}"
                         required
                     >
-                    <button type="submit" class="btn-teal px-6" id="searchBtn">
+                    <button type="submit" class="btn-teal px-3 sm:px-6 text-sm sm:text-base whitespace-nowrap flex-shrink-0" id="searchBtn">
                         <span id="searchBtnText">Search</span>
                     </button>
                 </form>
@@ -190,15 +177,14 @@
     </footer>
 
     <script>
-        // Search form loading animation
+        // Search form loading state
         document.getElementById('searchForm').addEventListener('submit', function(e) {
             const btn = document.getElementById('searchBtn');
             const btnText = document.getElementById('searchBtnText');
 
             // Disable button and show loading state
             btn.disabled = true;
-            btnText.textContent = 'Cargando';
-            btnText.classList.add('loading-dots');
+            btnText.textContent = 'Loading';
         });
 
         // Recently Watched functionality
