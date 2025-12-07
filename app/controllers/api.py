@@ -2,9 +2,16 @@
 API controller - AJAX endpoints for dynamic content
 """
 from flask import Blueprint, jsonify, request
-from HdRezkaApi import HdRezkaApi
 from app.models import Episode, Quality
 import requests
+import sys
+import os
+
+# Add local lib to path to use our customized HdRezkaApi
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'lib'))
+from HdRezkaApi import HdRezkaApi
+
+print("[INIT] Using custom HdRezkaApi library from lib/HdRezkaApi")
 
 # Monkey-patch requests to log what's being sent
 original_post = requests.post
