@@ -47,6 +47,11 @@ export default {
       // Get response data
       const responseData = await response.json();
 
+      // Log the response for debugging
+      console.log('Response from rezka.ag:', JSON.stringify(responseData));
+      console.log('URL field type:', typeof responseData.url);
+      console.log('URL field value:', responseData.url);
+
       // Return with CORS headers
       return new Response(JSON.stringify(responseData), {
         status: response.status,
