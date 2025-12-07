@@ -1,7 +1,7 @@
 """
 Main controller - home page and search
 """
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, send_from_directory
 from HdRezkaApi import HdRezkaApi
 try:
     from HdRezkaApi import HdRezkaSearch
@@ -11,6 +11,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 from app.models import SearchResult, extract_video_id
+import os
 
 main_bp = Blueprint('main', __name__)
 
@@ -184,3 +185,17 @@ def search():
 def health():
     """Health check endpoint"""
     return jsonify({'status': 'ok', 'service': 'HDRezka MVC App (HdRezkaApi library)'})
+
+
+@main_bp.route('/robots.txt')
+def robots_txt():
+    """Serve robots.txt for SEO"""
+    try:
+        static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
+        return send_from_directory(static_dir, 'robots.txt', mimetype='text/plain')
+    except Exception as e:
+        print(f"[ERROR] Serving robots.txt: {e}")
+        # Return a basic robots.txt if file not found
+        return """User-agent: *
+Allow: /
+Disallow: /api/""", 200, {'Content-Type': 'text/plain'}

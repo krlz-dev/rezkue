@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Allow: /search
+Allow: /watch
+
+Disallow: /api/
+
+Sitemap: https://hd-krlz.onrender.com/sitemap.xml
