@@ -4,6 +4,30 @@ API controller - AJAX endpoints for dynamic content
 from flask import Blueprint, jsonify, request
 from HdRezkaApi import HdRezkaApi
 from app.models import Episode, Quality
+import requests
+
+# Monkey-patch requests to log what's being sent
+original_post = requests.post
+
+def logged_post(url, *args, **kwargs):
+    print(f"[HTTP] POST {url}")
+    if 'headers' in kwargs:
+        print(f"[HTTP] Headers: {kwargs['headers']}")
+    if 'data' in kwargs:
+        print(f"[HTTP] Data: {kwargs['data']}")
+    response = original_post(url, *args, **kwargs)
+    print(f"[HTTP] Response status: {response.status_code}")
+    if hasattr(response, 'json'):
+        try:
+            json_resp = response.json()
+            print(f"[HTTP] Response JSON keys: {list(json_resp.keys()) if isinstance(json_resp, dict) else 'not a dict'}")
+            if isinstance(json_resp, dict) and 'url' in json_resp:
+                print(f"[HTTP] Response['url'] type: {type(json_resp['url'])}, value: {json_resp['url']}")
+        except:
+            pass
+    return response
+
+requests.post = logged_post
 
 api_bp = Blueprint('api', __name__)
 
@@ -217,7 +241,13 @@ def get_stream_url():
 
         # Initialize HdRezkaApi with proper headers
         try:
-            rezka = HdRezkaApi(video_url, headers=get_headers(video_url))
+            headers = get_headers(video_url)
+            print(f"[DEBUG] Headers being sent:")
+            for key, value in headers.items():
+                print(f"  {key}: {value}")
+
+            rezka = HdRezkaApi(video_url, headers=headers)
+            print(f"[DEBUG] HdRezkaApi initialized with headers: {rezka.HEADERS}")
             print(f"[STREAM] Content type: {rezka.type}")
             print(f"[STREAM] Available translators: {list(rezka.translators.keys()) if hasattr(rezka, 'translators') else 'None'}")
         except Exception as e:
