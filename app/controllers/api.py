@@ -250,7 +250,16 @@ def get_stream_url():
                 print(f"  {key}: {value}")
             print(f"[DEBUG] Cookies: {cookies}")
 
+            # Debug: Check environment variable before creating instance
+            import os
+            cf_url = os.getenv('CLOUDFLARE_WORKER_URL', '')
+            print(f"[DEBUG] CLOUDFLARE_WORKER_URL in env: {cf_url}")
+
             rezka = HdRezkaApiClass(video_url, headers=headers, cookies=cookies)
+
+            # Debug: Check if instance has Cloudflare Worker configured
+            print(f"[DEBUG] Instance cloudflare_worker_url: {rezka.cloudflare_worker_url}")
+            print(f"[DEBUG] Instance use_cloudflare_proxy: {rezka.use_cloudflare_proxy}")
             print(f"[STREAM] Content type: {rezka.type}")
             print(f"[STREAM] Available translators: {list(rezka.translators.keys()) if hasattr(rezka, 'translators') else 'None'}")
         except Exception as e:
