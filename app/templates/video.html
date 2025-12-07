@@ -457,7 +457,8 @@ function saveCurrentVideo() {
         url: videoData.url,
         title: '{{ video.title }}',
         thumbnail: '{{ video.thumbnail if video.thumbnail else "" }}',
-        type: '{{ video.type }}'
+        type: '{{ video.type }}',
+        timestamp: new Date().toISOString()
     };
 
     {% if video.type == 'series' %}
@@ -476,6 +477,13 @@ function saveCurrentVideo() {
 
     saveToRecentlyWatched(videoInfo);
     console.log('Saved to recently watched:', videoInfo);
+}
+
+// Also save when video actually starts playing (user engagement)
+if (player) {
+    player.one('play', function() {
+        saveCurrentVideo();
+    });
 }
 
 // Save initially when page loads

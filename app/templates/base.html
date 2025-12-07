@@ -197,7 +197,9 @@
         <!-- Recently Watched Section -->
         <div id="recentlyWatched" class="border-b border-gray-900" style="display: none;">
             <div class="container mx-auto px-4 py-6">
-                <h3 class="text-white font-semibold mb-4 text-sm">Recently Watched</h3>
+                <h3 class="text-white font-bold text-lg mb-4 flex items-center gap-2">
+                    <span>🕐</span> Continue Watching
+                </h3>
                 <div id="recentlyWatchedList" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <!-- Items will be inserted here -->
                 </div>
@@ -246,6 +248,24 @@
             displayRecentlyWatched();
         }
 
+        // Helper function to get time ago string
+        function getTimeAgo(timestamp) {
+            if (!timestamp) return '';
+
+            const now = new Date();
+            const then = new Date(timestamp);
+            const diffMs = now - then;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+            if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+            if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+            return then.toLocaleDateString();
+        }
+
         function displayRecentlyWatched() {
             const recent = getRecentlyWatched();
             const container = document.getElementById('recentlyWatched');
@@ -271,35 +291,44 @@
                     : null;
 
                 return `
-                <div class="card p-3 flex gap-3 items-center">
-                    <a href="${mainUrl}"
-                       class="flex gap-3 items-center flex-1 min-w-0 hover:opacity-80 transition-opacity">
+                <div class="card p-4">
+                    <a href="${mainUrl}" class="flex gap-3 mb-3 hover:opacity-80 transition-opacity">
                         ${video.thumbnail ? `
                             <img src="${video.thumbnail}"
                                  alt="${video.title}"
-                                 class="w-16 h-20 object-cover rounded border border-gray-700"
+                                 class="w-20 h-28 object-cover rounded border border-gray-700 flex-shrink-0"
                                  onerror="this.style.display='none'">
                         ` : `
-                            <div class="w-16 h-20 bg-gray-800 rounded border border-gray-700 flex items-center justify-center">
-                                <span class="text-gray-600">🎬</span>
+                            <div class="w-20 h-28 bg-gray-800 rounded border border-gray-700 flex items-center justify-center flex-shrink-0">
+                                <span class="text-gray-600 text-2xl">🎬</span>
                             </div>
                         `}
                         <div class="flex-1 min-w-0">
-                            <h4 class="text-white font-semibold text-sm truncate">${video.title}</h4>
-                            ${video.episodeInfo ? `
-                                <p class="text-teal-400 text-xs mt-1">${video.episodeInfo}</p>
-                            ` : ''}
-                            <p class="text-gray-400 text-xs ${video.episodeInfo ? '' : 'mt-1'}">
+                            <h4 class="text-white font-bold text-sm mb-2 line-clamp-2">${video.title}</h4>
+                            <p class="text-gray-400 text-xs mb-2">
                                 ${video.type === 'series' ? '📺 Series' : '🎬 Movie'}
+                                ${video.timestamp ? ` • ${getTimeAgo(video.timestamp)}` : ''}
                             </p>
+                            ${video.episodeInfo ? `
+                                <div class="bg-teal-900/30 border border-teal-700/50 rounded px-2 py-1 inline-block">
+                                    <p class="text-teal-400 text-xs font-semibold">📍 Continue from:</p>
+                                    <p class="text-teal-300 text-xs">${video.episodeInfo}</p>
+                                </div>
+                            ` : ''}
                         </div>
                     </a>
-                    ${video.type === 'series' && nextEpisodeUrl ? `
-                        <a href="${nextEpisodeUrl}"
-                           class="btn-teal px-3 py-2 text-xs whitespace-nowrap">
-                            Watch Next
+                    <div class="flex gap-2">
+                        <a href="${mainUrl}"
+                           class="btn-teal flex-1 text-center py-2 text-xs font-semibold">
+                            ${video.type === 'series' && video.episodeInfo ? '▶️ Continue' : '▶️ Watch'}
                         </a>
-                    ` : ''}
+                        ${video.type === 'series' && nextEpisodeUrl ? `
+                            <a href="${nextEpisodeUrl}"
+                               class="bg-gray-800 hover:bg-gray-700 text-white flex-1 text-center py-2 rounded-lg text-xs font-semibold border border-gray-700 transition-all">
+                                ⏭️ Next Episode
+                            </a>
+                        ` : ''}
+                    </div>
                 </div>
             `;
             }).join('');
