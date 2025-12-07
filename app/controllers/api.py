@@ -222,6 +222,17 @@ def get_stream_url():
 
             print(f"[SUCCESS] Found {len(quality_options)} quality options")
 
+            # Extract subtitle information
+            subtitles = []
+            if hasattr(stream, 'subtitles') and hasattr(stream.subtitles, 'subtitles') and stream.subtitles.subtitles:
+                for code, sub_info in stream.subtitles.subtitles.items():
+                    subtitles.append({
+                        'code': code,
+                        'label': sub_info['title'],
+                        'url': sub_info['link']
+                    })
+                print(f"[SUCCESS] Found {len(subtitles)} subtitle tracks")
+
             # Format the response
             quality_field = ','.join([
                 f"[{opt['quality']}]{opt['url']}"
@@ -233,6 +244,7 @@ def get_stream_url():
                 'url': quality_field,
                 'quality': quality_field,
                 'qualities': quality_options,
+                'subtitles': subtitles,
                 'subtitle': '',
                 'subtitle_lns': '',
                 'thumbnails': ''

@@ -19,8 +19,66 @@ BASE_URL = "https://rezka.ag"
 
 @main_bp.route('/')
 def index():
-    """Home page with search"""
-    return render_template('index.html')
+    """Home page with recently added content"""
+    try:
+        print("[HOME] Fetching recently added content from homepage")
+
+        response = requests.get(BASE_URL, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }, timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        results = []
+        # Get video items from homepage
+        items = soup.select('.b-content__inline_item')
+
+        for item in items[:24]:  # Limit to 24 items (4 rows of 6)
+            try:
+                link_elem = item.select_one('.b-content__inline_item-link a')
+                if not link_elem:
+                    continue
+
+                url = link_elem.get('href')
+                # Convert relative URLs to absolute
+                if url and url.startswith('/'):
+                    url = BASE_URL + url
+
+                title = link_elem.text.strip()
+
+                # Get additional info
+                info_elem = item.select_one('.b-content__inline_item-link div')
+                info = info_elem.text.strip() if info_elem else ''
+
+                # Get poster image
+                cover_elem = item.select_one('.b-content__inline_item-cover img')
+                poster = cover_elem.get('src') if cover_elem else ''
+
+                # Extract video ID
+                video_id = extract_video_id(url)
+
+                results.append(SearchResult(
+                    id=video_id,
+                    title=title,
+                    url=url,
+                    poster=poster,
+                    year='',
+                    country='',
+                    genre='',
+                    info=info
+                ))
+            except Exception as e:
+                print(f"[ERROR] Parsing item: {e}")
+                continue
+
+        print(f"[HOME] Found {len(results)} recently added items")
+        return render_template('index.html', results=results, is_homepage=True)
+
+    except Exception as e:
+        print(f"[ERROR] Fetching homepage: {e}")
+        import traceback
+        traceback.print_exc()
+        # Fallback to empty homepage
+        return render_template('index.html')
 
 
 @main_bp.route('/search')

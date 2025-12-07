@@ -29,28 +29,8 @@
             </div>
         </div>
 
-        <!-- Video Player -->
-        <div class="aspect-video bg-black rounded-lg overflow-hidden mb-4">
-            <video
-                id="videoPlayer"
-                class="video-js vjs-default-skin vjs-big-play-centered"
-                controls
-                preload="auto"
-            >
-                <p class="vjs-no-js text-white">
-                    To view this video please enable JavaScript
-                </p>
-            </video>
-        </div>
-
-        <!-- Quality Selector (hidden initially, shown after stream loads) -->
-        <div id="qualitySelector" class="mb-4" style="display: none;">
-            <h3 class="text-white font-semibold mb-2">Quality</h3>
-            <div id="qualityButtons" class="flex gap-2 flex-wrap"></div>
-        </div>
-
         <!-- Controls Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-{% if video.type == 'series' %}4{% else %}2{% endif %} gap-4 mb-4">
             <!-- Translator Selection -->
             <div>
                 <label class="block text-white font-semibold mb-2">Translation</label>
@@ -88,17 +68,29 @@
             </div>
             {% endif %}
 
-            <!-- Play Button -->
-            <div class="flex items-end">
-                <button id="playBtn" class="btn-teal w-full">
-                    ▶ Play
-                </button>
+            <!-- Quality Selection -->
+            <div>
+                <label class="block text-white font-semibold mb-2">Quality</label>
+                <select id="qualitySelect" class="w-full">
+                    <option value="">Loading...</option>
+                </select>
             </div>
         </div>
-    </div>
 
-    <!-- Status messages -->
-    <div id="statusMessage" class="card p-4 text-center text-gray-400" style="display: none;"></div>
+        <!-- Video Player -->
+        <div class="aspect-video bg-black rounded-lg overflow-hidden mb-4">
+            <video
+                id="videoPlayer"
+                class="video-js vjs-default-skin vjs-big-play-centered"
+                controls
+                preload="auto"
+            >
+                <p class="vjs-no-js text-white">
+                    To view this video please enable JavaScript
+                </p>
+            </video>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -112,34 +104,82 @@ const videoData = {
 let player = null;
 let currentQualities = [];
 let currentQualityIndex = 0;
+let currentSubtitles = [];
+
+// Get URL parameters
+function getUrlParameter(name) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name);
+}
 
 // Initialize Video.js player
 document.addEventListener('DOMContentLoaded', function() {
     player = videojs('videoPlayer', {
         controls: true,
         autoplay: false,
-        preload: 'auto',
+        preload: 'metadata',
         fluid: true,
-        responsive: true
+        responsive: true,
+        html5: {
+            vhs: {
+                overrideNative: true
+            },
+            nativeVideoTracks: false,
+            nativeAudioTracks: false,
+            nativeTextTracks: false
+        }
     });
 
     // Load episodes if it's a series
     {% if video.type == 'series' %}
-    loadEpisodes();
+    // Check for URL parameters for auto-selection
+    const urlSeason = getUrlParameter('season');
+    const urlEpisode = getUrlParameter('episode');
+
+    loadEpisodes().then(() => {
+        // Auto-select season if provided in URL
+        if (urlSeason) {
+            const seasonSelect = document.getElementById('seasonSelect');
+            seasonSelect.value = urlSeason;
+
+            // Load episodes for that season
+            loadSeasonEpisodes().then(() => {
+                // Auto-select episode if provided in URL
+                if (urlEpisode) {
+                    const episodeSelect = document.getElementById('episodeSelect');
+                    episodeSelect.value = urlEpisode;
+                    // Trigger play
+                    playVideo();
+                }
+            });
+        }
+    });
 
     // Event listeners for series
-    document.getElementById('translatorSelect').addEventListener('change', loadEpisodes);
+    document.getElementById('translatorSelect').addEventListener('change', function() {
+        loadEpisodes();
+    });
     document.getElementById('seasonSelect').addEventListener('change', loadSeasonEpisodes);
+    document.getElementById('episodeSelect').addEventListener('change', function() {
+        // Auto-load when episode is selected
+        if (this.value) {
+            playVideo();
+        }
+    });
+    {% else %}
+    // For movies, auto-load immediately
+    playVideo();
     {% endif %}
-
-    // Play button
-    document.getElementById('playBtn').addEventListener('click', playVideo);
 });
 
 {% if video.type == 'series' %}
 // Load initial episodes
 async function loadEpisodes() {
     const translatorId = document.getElementById('translatorSelect').value;
+    const episodeSelect = document.getElementById('episodeSelect');
+
+    // Show loading
+    episodeSelect.innerHTML = '<option value="">Loading...</option>';
 
     try {
         const response = await fetch('/api/episodes', {
@@ -155,16 +195,22 @@ async function loadEpisodes() {
 
         if (data.success) {
             // Populate episode select
-            const episodeSelect = document.getElementById('episodeSelect');
             episodeSelect.innerHTML = data.episodes.map((ep, index) =>
                 `<option value="${ep.id}" ${index === 0 ? 'selected' : ''}>${ep.number}</option>`
             ).join('');
+
+            // Auto-play first episode (only if no URL params)
+            const urlEpisode = getUrlParameter('episode');
+            if (data.episodes.length > 0 && !urlEpisode) {
+                playVideo();
+            }
         } else {
-            showStatus('Failed to load episodes: ' + data.error, 'error');
+            episodeSelect.innerHTML = '<option value="">Error loading</option>';
+            console.error('Failed to load episodes:', data.error);
         }
     } catch (error) {
         console.error('Error loading episodes:', error);
-        showStatus('Error loading episodes', 'error');
+        episodeSelect.innerHTML = '<option value="">Error loading</option>';
     }
 }
 
@@ -172,6 +218,10 @@ async function loadEpisodes() {
 async function loadSeasonEpisodes() {
     const translatorId = document.getElementById('translatorSelect').value;
     const seasonId = document.getElementById('seasonSelect').value;
+    const episodeSelect = document.getElementById('episodeSelect');
+
+    // Show loading
+    episodeSelect.innerHTML = '<option value="">Loading...</option>';
 
     try {
         const response = await fetch('/api/season_episodes', {
@@ -187,16 +237,22 @@ async function loadSeasonEpisodes() {
         const data = await response.json();
 
         if (data.success) {
-            const episodeSelect = document.getElementById('episodeSelect');
             episodeSelect.innerHTML = data.episodes.map((ep, index) =>
                 `<option value="${ep.id}" ${index === 0 ? 'selected' : ''}>${ep.number}</option>`
             ).join('');
+
+            // Auto-play first episode of new season (only if no URL params)
+            const urlEpisode = getUrlParameter('episode');
+            if (data.episodes.length > 0 && !urlEpisode) {
+                playVideo();
+            }
         } else {
-            showStatus('Failed to load episodes: ' + data.error, 'error');
+            episodeSelect.innerHTML = '<option value="">Error loading</option>';
+            console.error('Failed to load episodes:', data.error);
         }
     } catch (error) {
         console.error('Error loading season episodes:', error);
-        showStatus('Error loading season episodes', 'error');
+        episodeSelect.innerHTML = '<option value="">Error loading</option>';
     }
 }
 {% endif %}
@@ -209,16 +265,16 @@ async function playVideo() {
     const seasonId = document.getElementById('seasonSelect').value;
     const episodeId = document.getElementById('episodeSelect').value;
 
-    if (!episodeId) {
-        showStatus('Please select an episode', 'error');
-        return;
+    if (!episodeId || episodeId === '') {
+        return; // Don't show error, just wait for episode to be selected
     }
     {% else %}
     const seasonId = '';
     const episodeId = '';
     {% endif %}
 
-    showStatus('Loading stream...', 'info');
+    // Show loading on player
+    player.addClass('vjs-waiting');
 
     try {
         const response = await fetch('/api/stream', {
@@ -237,38 +293,42 @@ async function playVideo() {
         if (data.success && data.qualities && data.qualities.length > 0) {
             currentQualities = data.qualities;
             currentQualityIndex = 0;
+            currentSubtitles = data.subtitles || [];
 
             // Display quality selector
             displayQualitySelector();
 
             // Auto-play first quality
             loadQuality(0);
-
-            showStatus('Stream loaded successfully', 'success');
-            setTimeout(() => hideStatus(), 2000);
         } else {
-            showStatus('Failed to get stream: ' + (data.error || 'No quality options found'), 'error');
+            player.removeClass('vjs-waiting');
+            console.error('Failed to get stream:', data.error || 'No quality options found');
         }
     } catch (error) {
         console.error('Error getting stream:', error);
-        showStatus('Error loading stream', 'error');
+        player.removeClass('vjs-waiting');
     }
 }
 
-// Display quality selector buttons
+// Display quality selector dropdown
 function displayQualitySelector() {
-    const qualityButtons = document.getElementById('qualityButtons');
-    qualityButtons.innerHTML = currentQualities.map((q, index) =>
-        `<button
-            class="quality-btn ${index === 0 ? 'active' : ''}"
-            onclick="loadQuality(${index})"
-            data-quality-index="${index}"
-        >
-            ${q.quality}
-        </button>`
+    console.log('Setting up quality selector with', currentQualities.length, 'options');
+
+    const qualitySelect = document.getElementById('qualitySelect');
+
+    // Populate quality dropdown
+    qualitySelect.innerHTML = currentQualities.map((quality, index) =>
+        `<option value="${index}" ${index === currentQualityIndex ? 'selected' : ''}>${quality.quality}</option>`
     ).join('');
 
-    document.getElementById('qualitySelector').style.display = 'block';
+    // Add event listener for quality changes
+    qualitySelect.addEventListener('change', function() {
+        const index = parseInt(this.value);
+        console.log('Quality changed to:', index, currentQualities[index].quality);
+        loadQuality(index);
+    });
+
+    console.log('Quality selector ready');
 }
 
 // Load specific quality
@@ -280,42 +340,109 @@ function loadQuality(index) {
 
     console.log('Loading quality:', quality.quality, quality.url);
 
+    // Determine the MIME type based on URL extension
+    const isHLS = quality.url.includes('.m3u8');
+    const mimeType = isHLS ? 'application/x-mpegURL' : 'video/mp4';
+
+    console.log('MIME type:', mimeType);
+
+    // Remove existing text tracks
+    const existingTracks = player.remoteTextTracks();
+    for (let i = existingTracks.length - 1; i >= 0; i--) {
+        player.removeRemoteTextTrack(existingTracks[i]);
+    }
+
     // Update player source
     player.src({
         src: quality.url,
-        type: 'application/x-mpegURL'
+        type: mimeType
+    });
+
+    // Add subtitle tracks if available
+    if (currentSubtitles && currentSubtitles.length > 0) {
+        console.log('Adding', currentSubtitles.length, 'subtitle tracks');
+        currentSubtitles.forEach((subtitle, idx) => {
+            player.addRemoteTextTrack({
+                kind: 'subtitles',
+                src: subtitle.url,
+                srclang: subtitle.code,
+                label: subtitle.label,
+                default: idx === 0  // Make first subtitle default
+            }, false);
+        });
+    }
+
+    // Remove loading spinner when ready
+    player.one('loadeddata', function() {
+        player.removeClass('vjs-waiting');
+    });
+
+    // For MP4, also remove spinner on canplay
+    player.one('canplay', function() {
+        player.removeClass('vjs-waiting');
     });
 
     // Auto-play
     player.play().catch(err => {
         console.warn('Autoplay prevented:', err);
+        player.removeClass('vjs-waiting');
     });
 
-    // Update active button
-    document.querySelectorAll('.quality-btn').forEach((btn, i) => {
-        btn.classList.toggle('active', i === index);
-    });
-}
-
-// Status message helpers
-function showStatus(message, type = 'info') {
-    const statusDiv = document.getElementById('statusMessage');
-    statusDiv.textContent = message;
-    statusDiv.className = 'card p-4 text-center';
-
-    if (type === 'error') {
-        statusDiv.className += ' bg-red-900/50 border-red-700 text-red-200';
-    } else if (type === 'success') {
-        statusDiv.className += ' bg-green-900/50 border-green-700 text-green-200';
-    } else {
-        statusDiv.className += ' text-gray-400';
+    // Update quality dropdown selection
+    const qualitySelect = document.getElementById('qualitySelect');
+    if (qualitySelect) {
+        qualitySelect.value = index;
     }
 
-    statusDiv.style.display = 'block';
+    console.log('Quality loaded:', currentQualities[index].quality);
 }
 
-function hideStatus() {
-    document.getElementById('statusMessage').style.display = 'none';
+// Save to recently watched with episode info
+function saveCurrentVideo() {
+    if (typeof saveToRecentlyWatched !== 'function') {
+        console.error('saveToRecentlyWatched function not found');
+        return;
+    }
+
+    const videoInfo = {
+        url: videoData.url,
+        title: '{{ video.title }}',
+        thumbnail: '{{ video.thumbnail if video.thumbnail else "" }}',
+        type: '{{ video.type }}'
+    };
+
+    {% if video.type == 'series' %}
+    // Add episode info for series
+    const seasonSelect = document.getElementById('seasonSelect');
+    const episodeSelect = document.getElementById('episodeSelect');
+
+    if (seasonSelect && episodeSelect && episodeSelect.value) {
+        const seasonText = seasonSelect.options[seasonSelect.selectedIndex].text;
+        const episodeText = episodeSelect.options[episodeSelect.selectedIndex].text;
+        videoInfo.episodeInfo = `${seasonText} - ${episodeText}`;
+        videoInfo.seasonId = seasonSelect.value;
+        videoInfo.episodeId = episodeSelect.value;
+    }
+    {% endif %}
+
+    saveToRecentlyWatched(videoInfo);
+    console.log('Saved to recently watched:', videoInfo);
 }
+
+// Save initially when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    saveCurrentVideo();
+});
+
+{% if video.type == 'series' %}
+// Update recently watched when episode changes
+document.getElementById('episodeSelect').addEventListener('change', function() {
+    if (this.value) {
+        // Delay to let episode load
+        setTimeout(saveCurrentVideo, 500);
+    }
+});
+{% endif %}
+
 </script>
 {% endblock %}
