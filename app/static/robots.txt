@@ -5,4 +5,4 @@ Allow: /watch
 
 Disallow: /api/
 
-Sitemap: https://hd-krlz.onrender.com/sitemap.xml
+Sitemap: /sitemap.xml

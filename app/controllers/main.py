@@ -210,3 +210,34 @@ def google_verification():
     except Exception as e:
         print(f"[ERROR] Serving Google verification file: {e}")
         return "google-site-verification: googleea6b978fd10b00ad.html", 200, {'Content-Type': 'text/html'}
+
+
+@main_bp.route('/sitemap.xml')
+def sitemap():
+    """Generate XML sitemap for SEO"""
+    from datetime import datetime
+
+    # Get base URL from request
+    base_url = request.url_root.rstrip('/')
+
+    # Current date in ISO format
+    today = datetime.now().strftime('%Y-%m-%d')
+
+    # Build sitemap XML
+    sitemap_xml = f'''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>{base_url}/</loc>
+        <lastmod>{today}</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>1.0</priority>
+    </url>
+    <url>
+        <loc>{base_url}/search</loc>
+        <lastmod>{today}</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>
+</urlset>'''
+
+    return sitemap_xml, 200, {'Content-Type': 'application/xml; charset=utf-8'}
