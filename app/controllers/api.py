@@ -7,6 +7,22 @@ from app.models import Episode, Quality
 
 api_bp = Blueprint('api', __name__)
 
+# Browser-like headers to avoid detection/blocking
+BROWSER_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9,ru;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'DNT': '1',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Cache-Control': 'max-age=0'
+}
+
 
 @api_bp.route('/episodes', methods=['POST'])
 def get_episodes():
@@ -22,7 +38,7 @@ def get_episodes():
         print(f"[EPISODES] Getting episodes for: {video_url}")
 
         try:
-            rezka = HdRezkaApi(video_url)
+            rezka = HdRezkaApi(video_url, headers=BROWSER_HEADERS)
             print(f"[EPISODES] Content type: {rezka.type}")
             print(f"[EPISODES] Available translators: {list(rezka.translators.keys()) if hasattr(rezka, 'translators') else 'None'}")
         except Exception as e:
@@ -110,7 +126,7 @@ def get_season_episodes():
         print(f"[SEASON_EPISODES] Getting episodes for season {season_id}")
 
         try:
-            rezka = HdRezkaApi(video_url)
+            rezka = HdRezkaApi(video_url, headers=BROWSER_HEADERS)
             print(f"[SEASON_EPISODES] Content type: {rezka.type}")
         except Exception as e:
             print(f"[ERROR] Failed to initialize HdRezkaApi: {e}")
@@ -196,7 +212,7 @@ def get_stream_url():
         print(f"  Translator: {translator_id}, Season: {season_id}, Episode: {episode_id}")
 
         try:
-            rezka = HdRezkaApi(video_url)
+            rezka = HdRezkaApi(video_url, headers=BROWSER_HEADERS)
             print(f"[STREAM] Content type: {rezka.type}")
             print(f"[STREAM] Available translators: {list(rezka.translators.keys()) if hasattr(rezka, 'translators') else 'None'}")
         except Exception as e:
